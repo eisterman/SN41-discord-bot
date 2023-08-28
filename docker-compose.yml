@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  discordbot:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: discordbot
+    command: python3 code.py
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+
