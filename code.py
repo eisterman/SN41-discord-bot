@@ -51,7 +51,8 @@ async def on_voice_state_update(member, before, after):
     if after.channel and after.channel.id == int(os.environ['DISCORD_DUPLICATE_VOICE_CHANNEL']):
         permissions = after.channel.overwrites
         if len(created_channels) >= max_channels:
-            await member.kick(reason=f"Non piu di {max_channels} canali, vile marrano!")
+            await member.move_to(None)
+            await member.send(f"Vile marrano! Limite stanze a {max_channels}! 🗿🗿🗿")
             return
         already_numbers = sorted([0] + [x for x, _ in created_channels])
         for s,e in pairwise(already_numbers):
