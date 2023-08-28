@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import random
+from itertools import pairwise
 import discord
 from discord.ext import commands
 
@@ -22,7 +23,9 @@ with open(goodbye_phrases_file) as f:
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-created_channels = []
+max_channels = 50
+
+created_channels = []  # (i, chidx)
 
 @bot.event
 async def on_member_join(member):
@@ -39,19 +42,31 @@ async def on_member_remove(member):
 
 @bot.event
 async def on_voice_state_update(member, before, after):
-    if before.channel and before.channel.id in created_channels:
+    if before.channel and before.channel.id in map(lambda x: x[1], created_channels):
         if not before.channel.members:
             await before.channel.delete()
-            created_channels.remove(before.channel.id)
+            index = next((i for i, (x, chid) in enumerate(created_channels) if chid == before.channel.id), None)
+            created_channels.pop(index)
 
     if after.channel and after.channel.id == int(os.environ['DISCORD_DUPLICATE_VOICE_CHANNEL']):
         permissions = after.channel.overwrites
+        if len(created_channels) >= max_channels:
+            await member.kick(reason=f"Non piu di {max_channels} canali, vile marrano!")
+            return
+        already_numbers = sorted([0] + [x for x, _ in created_channels])
+        for s,e in pairwise(already_numbers):
+            if e-s > 1:
+                new_number = s+1
+                break
+        else:
+            new_number = len(already_numbers)
         new_channel = await after.channel.guild.create_voice_channel(
-                name=f"{len(created_channels)+1} 🔊 Random Battle", 
+                name=f"{new_number} {after.channel.name}", 
             category=after.channel.category,
             overwrites=permissions,
+            position=after.channel.position + new_number,
         )
-        created_channels.append(new_channel.id)
+        created_channels.append((new_number, new_channel.id))
         await member.move_to(new_channel)
 
 bot.run(os.environ['DISCORD_BOT_SECRET_KEY'])
