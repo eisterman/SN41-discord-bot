@@ -2,12 +2,16 @@
 import os
 import random
 from itertools import pairwise
+from datetime import datetime, timedelta
+import pytz
+from hashlib import md5
 import discord
 from discord.ext import commands
 
 intents = discord.Intents.default()
 intents.members = True
 intents.voice_states = True
+intents.message_content = True
 
 join_message = \
 """Benvenuto in **LNI COMMUNITY** {}!
@@ -20,6 +24,15 @@ join_image_path = './discord_msg_img.jpg'
 goodbye_phrases_file = './goodbye_phrases.txt'
 with open(goodbye_phrases_file) as f:
     goodbye_phrases = [ ph.strip() for ph in f.readlines() if len(ph.strip()) > 0 ]
+
+msgentrydb = {}  # user_id: MsgEntry
+
+class MsgEntry:
+    def __init__(self, msg, timestamp):
+        self.hashmsg = md5(msg.content.encode()).hexdigest()
+        self.timestamp = timestamp
+        self.n = 1
+        self.msgs = [msg]
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -69,6 +82,41 @@ async def on_voice_state_update(member, before, after):
         )
         created_channels.append((new_number, new_channel.id))
         await member.move_to(new_channel)
+
+@bot.event
+async def on_message(message):
+    if message.author.id == bot.user.id:
+        return
+    if len(message.content) < 15:
+        return
+    now = datetime.now(pytz.UTC)
+    hashmsg = md5(message.content.encode()).hexdigest()
+    entry = msgentrydb.get(message.author.id)
+    if entry is not None:
+        if now - entry.timestamp > timedelta(minutes=1):
+            # Too much time passed, reset status
+            msgentrydb[message.author.id] = MsgEntry(message, now)
+        elif hashmsg == entry.hashmsg:
+            # Same message!
+            entry.n += 1
+            if entry.n >= 2:
+                # Block messages
+                for msg in entry.msgs:
+                    await msg.delete()
+                await message.delete()
+                entry.msgs = []
+                # Admin Message
+                if entry.n > 2:
+                    await message.author.timeout(timedelta(minutes=5),
+                            reason="Spamming")
+                    channel = bot.get_channel(int(os.environ['DISCORD_ADMIN_LOG_CHANNEL']))
+                    await channel.send(f"User {message.author.name} timeouted for repeated msg:\n{message.content}")
+        else:
+            # Not the same message, reset status
+            msgentrydb[message.author.id] = MsgEntry(message, now)
+    else:
+        msgentrydb[message.author.id] = MsgEntry(message, now)
+
 
 bot.run(os.environ['DISCORD_BOT_SECRET_KEY'])
 
