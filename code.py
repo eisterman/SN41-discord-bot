@@ -40,6 +40,12 @@ max_channels = 50
 
 created_channels = []  # (i, chidx)
 
+delete_msg = """Rilevati messaggi ripetuti.
+Messaggi precedenti cancellati. 
+Ulteriori invii dello stesso messaggio di seguito risulteranno in un timeout di 5 minuti.
+
+In caso di domande o falsi positivi, contattare @eisterman"""
+
 @bot.event
 async def on_member_join(member):
     file = discord.File(join_image_path, filename="image.png")
@@ -87,7 +93,11 @@ async def on_voice_state_update(member, before, after):
 async def on_message(message):
     if message.author.id == bot.user.id:
         return
-    if len(message.content) < 15:
+    if len(message.content) < 10:
+        try:
+            msgentrydb.pop(message.author.id)
+        except KeyError:
+            pass
         return
     now = datetime.now(pytz.UTC)
     hashmsg = md5(message.content.encode()).hexdigest()
@@ -104,6 +114,7 @@ async def on_message(message):
                 for msg in entry.msgs:
                     await msg.delete()
                 await message.delete()
+                await message.author.send(delete_msg)
                 entry.msgs = []
                 # Admin Message
                 if entry.n > 2:
