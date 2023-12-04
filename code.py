@@ -14,18 +14,20 @@ intents.voice_states = True
 intents.message_content = True
 
 join_message = \
-"""Benvenuto in **LNI COMMUNITY** {}!
-Modifica il tuo soprannome nel nostro discord in modo che coincida con il tuo nickname in gioco e se vuoi metti il tuo nome tra parentesi.
-Se sei interessato ad entrare nel clan, non esitare a contattare uno degli admin.
-Buona permanenza !"""
+    ("Benvenuto in **LNI COMMUNITY** {}!\n"
+     "Modifica il tuo soprannome nel nostro discord in modo che coincida con il tuo nickname in gioco e "
+     "se vuoi metti il tuo nome tra parentesi.\n"
+     "Se sei interessato ad entrare nel clan, non esitare a contattare uno degli admin.\n"
+     "Buona permanenza !")
 
 join_image_path = './discord_msg_img.jpg'
 
 goodbye_phrases_file = './goodbye_phrases.txt'
 with open(goodbye_phrases_file) as f:
-    goodbye_phrases = [ ph.strip() for ph in f.readlines() if len(ph.strip()) > 0 ]
+    goodbye_phrases = [ph.strip() for ph in f.readlines() if len(ph.strip()) > 0]
 
 msgentrydb = {}  # user_id: MsgEntry
+
 
 class MsgEntry:
     def __init__(self, msg, timestamp):
@@ -33,6 +35,7 @@ class MsgEntry:
         self.timestamp = timestamp
         self.n = 1
         self.msgs = [msg]
+
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -46,6 +49,7 @@ Ulteriori invii dello stesso messaggio di seguito risulteranno in un timeout di 
 
 In caso di domande o falsi positivi, contattare @eisterman"""
 
+
 @bot.event
 async def on_member_join(member):
     file = discord.File(join_image_path, filename="image.png")
@@ -53,11 +57,13 @@ async def on_member_join(member):
     embed.set_image(url="attachment://image.png")
     await member.send(file=file, embed=embed)
 
+
 @bot.event
 async def on_member_remove(member):
     channel = bot.get_channel(int(os.environ['DISCORD_GENERAL_TEXT_CHANNEL']))
     phrase = random.sample(goodbye_phrases, 1)[0]
     await channel.send(phrase.format(member.display_name))
+
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -74,20 +80,21 @@ async def on_voice_state_update(member, before, after):
             await member.send(f"Vile marrano! Limite stanze a {max_channels}! 🗿🗿🗿")
             return
         already_numbers = sorted([0] + [x for x, _ in created_channels])
-        for s,e in pairwise(already_numbers):
-            if e-s > 1:
-                new_number = s+1
+        for s, e in pairwise(already_numbers):
+            if e - s > 1:
+                new_number = s + 1
                 break
         else:
             new_number = len(already_numbers)
         new_channel = await after.channel.guild.create_voice_channel(
-                name=f"{new_number} {after.channel.name}", 
+            name=f"{new_number} {after.channel.name}",
             category=after.channel.category,
             overwrites=permissions,
             position=after.channel.position + new_number,
         )
         created_channels.append((new_number, new_channel.id))
         await member.move_to(new_channel)
+
 
 @bot.event
 async def on_message(message):
@@ -119,7 +126,7 @@ async def on_message(message):
                 # Admin Message
                 if entry.n > 2:
                     await message.author.timeout(timedelta(minutes=5),
-                            reason="Spamming")
+                                                 reason="Spamming")
                     channel = bot.get_channel(int(os.environ['DISCORD_ADMIN_LOG_CHANNEL']))
                     await channel.send(f"User {message.author.name} timeouted for repeated msg:\n{message.content}")
         else:
@@ -129,19 +136,4 @@ async def on_message(message):
         msgentrydb[message.author.id] = MsgEntry(message, now)
 
 
-@bot.event
-async def on_ready():
-    guild = bot.get_guild(934068214411960401)
-    if guild:
-        members = guild.members
-        member_list = [';'.join([m.name, str(m.joined_at), ','.join([r.name for r in m.roles])]) for m in members]
-        message = '\n'.join(member_list)
-        with open('member_list.txt', 'w') as f:
-            f.write(message)
-        print("Member list dumped on member_list.txt")
-    else:
-        print("fuck")
-
-
 bot.run(os.environ['DISCORD_BOT_SECRET_KEY'])
-
