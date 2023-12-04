@@ -129,5 +129,19 @@ async def on_message(message):
         msgentrydb[message.author.id] = MsgEntry(message, now)
 
 
+@bot.event
+async def on_ready():
+    guild = bot.get_guild(934068214411960401)
+    if guild:
+        members = guild.members
+        member_list = [';'.join([m.name, str(m.joined_at), ','.join([r.name for r in m.roles])]) for m in members]
+        message = '\n'.join(member_list)
+        with open('member_list.txt', 'w') as f:
+            f.write(message)
+        print("Member list dumped on member_list.txt")
+    else:
+        print("fuck")
+
+
 bot.run(os.environ['DISCORD_BOT_SECRET_KEY'])
 
