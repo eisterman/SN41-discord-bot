@@ -2,11 +2,13 @@
 import os
 import random
 from itertools import pairwise
+from collections import OrderedDict
 from datetime import datetime, timedelta
 import pytz
 from hashlib import md5
 import discord
 from discord.ext import commands
+from discord.ui import Button, View
 
 intents = discord.Intents.default()
 intents.members = True
@@ -50,12 +52,48 @@ Ulteriori invii dello stesso messaggio di seguito risulteranno in un timeout di 
 In caso di domande o falsi positivi, contattare @eisterman"""
 
 
+def get_rolesets(guild: discord.Guild):
+    names = [role.name for role in guild.roles]
+    lnicom_i = names.index("LNI COMMUNITY")
+    commod_i = names.index("COMMODORO")
+    clans_name = ['[LNI]'] + list(reversed(names[lnicom_i+1:commod_i]))  # From older to newer
+    out = OrderedDict()
+    for clan_name in clans_name:
+        out[clan_name] = [clan_name, "LNI COMMUNITY"]
+    out["OSPITI"] = ["OSPITI"]
+    return out
+
+
+# Button class
+class RolesetButton(Button):
+    def __init__(self, clanname, rolenames: [str], member: discord.Member):
+        self._member = member
+        self._rolenames = rolenames
+        super().__init__(label=clanname)
+
+    async def callback(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        roles_to_assign = [discord.utils.get(guild.roles, name=rolename) for rolename in self._rolenames]
+        await self._member.edit(roles=roles_to_assign)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(f'{self.label} clicked!')  # ephemeral=True
+        await interaction.message.delete()
+
+
 @bot.event
-async def on_member_join(member):
+async def on_member_join(member: discord.Member):
+    # Invio messaggio di benvenuto
     file = discord.File(join_image_path, filename="image.png")
     embed = discord.Embed(description=join_message.format(member.display_name), colour=discord.Colour.gold())
     embed.set_image(url="attachment://image.png")
     await member.send(file=file, embed=embed)
+    # Apparizione messaggio di selezione ruolo
+    channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
+    view = View()
+    rolesets = get_rolesets(member.guild)
+    for clanname, rolenames in rolesets.items():
+        view.add_item(RolesetButton(clanname, rolenames, member))
+    await channel.send('Click a button:', view=view)
 
 
 @bot.event
