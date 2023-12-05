@@ -119,13 +119,13 @@ async def send_changerole_msg_with(awaitable_func, user: discord.Member):
 @app_commands.check(ac_check_if_admin)
 @app_commands.default_permissions(move_members=True)
 @app_commands.guild_only()
-async def cambiaruolo(ctx: commands.Context, user: discord.Member):
+async def cambiaruolo(interaction: discord.Interaction, user: discord.Member):
     channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
-    if ctx.channel != channel:
-        await ctx.message.delete()
-        await ctx.send(f"Non puoi usare /cambiaruolo fuori da {channel.name}!", ephemeral=True)
+    if interaction.channel != channel:
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(f"Non puoi usare /cambiaruolo fuori da {channel.name}!", ephemeral=True)
         return
-    await send_changerole_msg_with(ctx.author.send, user)
+    await send_changerole_msg_with(interaction.user.send, user)
 
 
 @bot.event
