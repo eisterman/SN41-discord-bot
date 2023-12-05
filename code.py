@@ -157,8 +157,9 @@ async def on_voice_state_update(member, before, after):
         await member.move_to(new_channel)
 
 
-@bot.event
-async def on_message(message):
+@bot.listen('on_message')
+async def on_message_antispam(message):
+
     if message.author.id == bot.user.id:
         return
     if len(message.content) < 10:
@@ -195,6 +196,14 @@ async def on_message(message):
             msgentrydb[message.author.id] = MsgEntry(message, now)
     else:
         msgentrydb[message.author.id] = MsgEntry(message, now)
+
+
+@bot.command()
+async def sync_commands_here(ctx):
+    guild = ctx.guild
+    bot.tree.copy_global_to(guild=guild)
+    await bot.tree.sync(guild=guild)
+    await ctx.send("Commands sync with this server")
 
 
 bot.run(os.environ['DISCORD_BOT_SECRET_KEY'])
