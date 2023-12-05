@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import pytz
 from hashlib import md5
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import Button, View
 
@@ -75,9 +76,31 @@ class RolesetButton(Button):
         guild = interaction.guild
         roles_to_assign = [discord.utils.get(guild.roles, name=rolename) for rolename in self._rolenames]
         await self._member.edit(roles=roles_to_assign)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(f'{self.label} clicked!')  # ephemeral=True
+        msg = f"L'utente {self._member.mention} è stato assegnato da {interaction.user.mention} al gruppo {self.label}!"
         await interaction.message.delete()
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(msg)
+
+
+def check_if_admin(interaction: discord.Interaction) -> bool:
+    admin_roles = ['AMMIRAGLIO', 'RECLUTATORE [LNI]', 'COMMODORO']
+    return any([role.name in admin_roles for role in interaction.user.roles])
+
+
+@bot.hybrid_command(description="Apre un messaggio di selezione ruolo per l'utente scelto")
+@app_commands.describe(user="L'utente di cui modificare il ruolo")
+@app_commands.check(check_if_admin)
+async def cambiaruolo(ctx: commands.Context, user: discord.Member):
+    channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
+    if ctx.channel != channel:
+        await ctx.message.delete()
+        await ctx.send(f"Non puoi usare /cambiaruolo fuori da {channel.name}!", ephemeral=True)
+        return
+    view = View()
+    rolesets = get_rolesets(user.guild)
+    for clanname, rolenames in rolesets.items():
+        view.add_item(RolesetButton(clanname, rolenames, user))
+    await ctx.send('Click a button:', view=view, ephemeral=True)
 
 
 @bot.event
