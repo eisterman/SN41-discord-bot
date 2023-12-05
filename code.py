@@ -68,9 +68,10 @@ def get_rolesets(guild: discord.Guild):
 
 
 class RolesetButton(Button):
-    def __init__(self, clanname, rolenames: [str], member: discord.Member):
+    def __init__(self, clanname, rolenames: [str], member: discord.Member, test):
         self._member = member
         self._rolenames = rolenames
+        self.test = test
         super().__init__(label=clanname)
 
     async def callback(self, interaction: discord.Interaction):
@@ -86,7 +87,8 @@ class RolesetButton(Button):
                 "Tale azione e' stata reportata agli amministratori."
             )
             await channel.send(msg)
-        await interaction.message.delete()
+        # await interaction.message.delete()
+        await self.test.delete_original_response()
         guild = interaction.guild
         channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
         roles_to_assign = [discord.utils.get(guild.roles, name=rolename) for rolename in self._rolenames]
@@ -103,15 +105,15 @@ def ac_check_if_admin(interaction: discord.Interaction) -> bool:
     return is_admin(interaction.user)
 
 
-async def send_changerole_msg_with(awaitable_func, user: discord.Member):
+async def send_changerole_msg_with(awaitable_func, user: discord.Member, test, **kwargs):
     view = View()
     rolesets = get_rolesets(user.guild)
     for clanname, rolenames in rolesets.items():
-        view.add_item(RolesetButton(clanname, rolenames, user))
+        view.add_item(RolesetButton(clanname, rolenames, user, test))
     msg = (
         f"E' entrato il nuovo utente {user.mention} ! Che ruolo dobbiamo assegnargli?"
     )
-    await awaitable_func(msg, view=view)
+    await awaitable_func(msg, view=view, **kwargs)
 
 
 @bot.tree.command(description="Apre un messaggio di selezione ruolo per l'utente scelto")
@@ -125,7 +127,7 @@ async def cambiaruolo(interaction: discord.Interaction, user: discord.Member):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"Non puoi usare /cambiaruolo fuori da {channel.name}!", ephemeral=True)
         return
-    await send_changerole_msg_with(interaction.user.send, user)
+    await send_changerole_msg_with(interaction.response.send_message, user, interaction, ephemeral=True)
 
 
 @bot.event
