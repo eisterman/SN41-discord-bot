@@ -16,6 +16,8 @@ intents.members = True
 intents.voice_states = True
 intents.message_content = True
 
+ADMIN_ROLES = ['AMMIRAGLIO', 'RECLUTATORE [LNI]', 'COMMODORO']
+
 join_message = \
     ("Benvenuto in **LNI COMMUNITY** {}!\n"
      "Modifica il tuo soprannome nel nostro discord in modo che coincida con il tuo nickname in gioco e "
@@ -65,7 +67,6 @@ def get_rolesets(guild: discord.Guild):
     return out
 
 
-# Button class
 class RolesetButton(Button):
     def __init__(self, clanname, rolenames: [str], member: discord.Member):
         self._member = member
@@ -73,34 +74,58 @@ class RolesetButton(Button):
         super().__init__(label=clanname)
 
     async def callback(self, interaction: discord.Interaction):
+        if not is_admin(interaction.user):
+            channel = bot.get_channel(int(os.environ['DISCORD_ADMIN_LOG_CHANNEL']))
+            await interaction.message.delete()
+            msg = (
+                f"**ATTENZIONE!** UTENTE {interaction.user.mention} HA TENTATO DI CAMBIARE I RUOLI " 
+                f"(set to {self.label}) ALL'UTENTE {self._member.mention} IN MANIERA ILLEGALE!"
+            )
+            await interaction.user.send(
+                "**ATTENZIONE!** E' stato rilevato un tentativo illegale di cambio utente.\n"
+                "Tale azione e' stata reportata agli amministratori."
+            )
+            await channel.send(msg)
+        await interaction.message.delete()
         guild = interaction.guild
+        channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
         roles_to_assign = [discord.utils.get(guild.roles, name=rolename) for rolename in self._rolenames]
         await self._member.edit(roles=roles_to_assign)
         msg = f"L'utente {self._member.mention} è stato assegnato da {interaction.user.mention} al gruppo {self.label}!"
-        await interaction.message.delete()
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(msg)
+        await channel.send(msg)
 
 
-def check_if_admin(interaction: discord.Interaction) -> bool:
-    admin_roles = ['AMMIRAGLIO', 'RECLUTATORE [LNI]', 'COMMODORO']
-    return any([role.name in admin_roles for role in interaction.user.roles])
+def is_admin(user: discord.Member) -> bool:
+    return any([role.name in ADMIN_ROLES for role in user.roles])
 
 
-@bot.hybrid_command(description="Apre un messaggio di selezione ruolo per l'utente scelto")
+def ac_check_if_admin(interaction: discord.Interaction) -> bool:
+    return is_admin(interaction.user)
+
+
+async def send_changerole_msg_with(awaitable_func, user: discord.Member):
+    view = View()
+    rolesets = get_rolesets(user.guild)
+    for clanname, rolenames in rolesets.items():
+        view.add_item(RolesetButton(clanname, rolenames, user))
+    msg = (
+        f"E' entrato il nuovo utente {user.mention} ! Che ruolo dobbiamo assegnargli?"
+    )
+    await awaitable_func(msg, view=view)
+
+
+@bot.tree.command(description="Apre un messaggio di selezione ruolo per l'utente scelto")
 @app_commands.describe(user="L'utente di cui modificare il ruolo")
-@app_commands.check(check_if_admin)
+@app_commands.check(ac_check_if_admin)
+@app_commands.default_permissions(move_members=True)
+@app_commands.guild_only()
 async def cambiaruolo(ctx: commands.Context, user: discord.Member):
     channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
     if ctx.channel != channel:
         await ctx.message.delete()
         await ctx.send(f"Non puoi usare /cambiaruolo fuori da {channel.name}!", ephemeral=True)
         return
-    view = View()
-    rolesets = get_rolesets(user.guild)
-    for clanname, rolenames in rolesets.items():
-        view.add_item(RolesetButton(clanname, rolenames, user))
-    await ctx.send('Click a button:', view=view, ephemeral=True)
+    await send_changerole_msg_with(ctx.author.send, user)
 
 
 @bot.event
@@ -112,11 +137,7 @@ async def on_member_join(member: discord.Member):
     await member.send(file=file, embed=embed)
     # Apparizione messaggio di selezione ruolo
     channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
-    view = View()
-    rolesets = get_rolesets(member.guild)
-    for clanname, rolenames in rolesets.items():
-        view.add_item(RolesetButton(clanname, rolenames, member))
-    await channel.send('Click a button:', view=view)
+    await send_changerole_msg_with(channel.send, member)
 
 
 @bot.event
@@ -199,7 +220,9 @@ async def on_message_antispam(message):
 
 
 @bot.command()
-async def sync_commands_here(ctx):
+@commands.guild_only()
+@commands.has_role('MECCANICI')
+async def sync_commands_here(ctx: discord.ext.commands.Context):
     guild = ctx.guild
     bot.tree.copy_global_to(guild=guild)
     await bot.tree.sync(guild=guild)
