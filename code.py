@@ -16,7 +16,7 @@ intents.members = True
 intents.voice_states = True
 intents.message_content = True
 
-ADMIN_ROLES = ['AMMIRAGLIO', 'RECLUTATORE [LNI]', 'COMMODORO']
+ADMIN_ROLES = ['MECCANICI', 'AMMIRAGLIO', 'RECLUTATORE [LNI]', 'COMMODORO']
 
 join_message = \
     ("Benvenuto in **LNI COMMUNITY** {}!\n"
@@ -88,6 +88,7 @@ class RolesetButton(Button):
                 "Tale azione e' stata reportata agli amministratori."
             )
             await channel.send(msg)
+            return
         if self._ointeraction is None:
             await interaction.message.delete()
         else:
@@ -134,6 +135,20 @@ async def cambiaruolo(interaction: discord.Interaction, user: discord.Member):
     if interaction.channel != channel:
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"Non puoi usare /cambiaruolo fuori da {channel.name}!", ephemeral=True)
+        return
+    if is_admin(user):
+        channel = bot.get_channel(int(os.environ['DISCORD_ADMIN_LOG_CHANNEL']))
+        await interaction.delete_original_response()
+        await interaction.user.send(
+            "**ATTENZIONE!** E' stato rilevato un tentativo illegale di cambio utente.\n"
+            "Tale azione e' stata reportata agli amministratori.\n\n"
+            "Distinti saluti,\n~LNI Bot~"
+        )
+        msg = (
+            f"**ATTENZIONE!** UTENTE {interaction.user.mention} HA TENTATO DI CAMBIARE I RUOLI "
+            f"ALL'UTENTE {user.mention} NONOSTANTE SIA IN UN GRUPPO AMMINISTRATORE!"
+        )
+        await channel.send(msg)
         return
     # noinspection PyUnresolvedReferences
     await send_changerole_msg_with(interaction.response.send_message, user, interaction, ephemeral=True)
