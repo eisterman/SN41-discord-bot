@@ -141,7 +141,6 @@ async def cambiaruolo(interaction: discord.Interaction, user: discord.Member):
         return
     if is_admin(user):
         channel = bot.get_channel(int(os.environ['DISCORD_ADMIN_LOG_CHANNEL']))
-        await interaction.delete_original_response()
         try:
             await interaction.user.send(
                 "**ATTENZIONE!** E' stato rilevato un tentativo illegale di cambio utente.\n"
