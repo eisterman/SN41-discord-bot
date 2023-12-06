@@ -16,7 +16,7 @@ intents.members = True
 intents.voice_states = True
 intents.message_content = True
 
-ADMIN_ROLES = ['MECCANICI', 'AMMIRAGLIO', 'RECLUTATORE [LNI]', 'COMMODORO']
+ADMIN_ROLES = ['MECCANICI', 'AMMIRAGLIO', 'RECLUTATORE [LNI]', 'COMMODORO', 'BOT']
 
 join_message = \
     ("Benvenuto in **LNI COMMUNITY** {}!\n"
@@ -83,10 +83,13 @@ class RolesetButton(Button):
                 f"**ATTENZIONE!** UTENTE {interaction.user.mention} HA TENTATO DI CAMBIARE I RUOLI " 
                 f"(set to {self.label}) ALL'UTENTE {self._member.mention} IN MANIERA ILLEGALE!"
             )
-            await interaction.user.send(
-                "**ATTENZIONE!** E' stato rilevato un tentativo illegale di cambio utente.\n"
-                "Tale azione e' stata reportata agli amministratori."
-            )
+            try:
+                await interaction.user.send(
+                    "**ATTENZIONE!** E' stato rilevato un tentativo illegale di cambio utente.\n"
+                    "Tale azione e' stata reportata agli amministratori."
+                )
+            except Exception:
+                print(f"Error sending msg to {interaction.user.name}")
             await channel.send(msg)
             return
         if self._ointeraction is None:
@@ -139,11 +142,14 @@ async def cambiaruolo(interaction: discord.Interaction, user: discord.Member):
     if is_admin(user):
         channel = bot.get_channel(int(os.environ['DISCORD_ADMIN_LOG_CHANNEL']))
         await interaction.delete_original_response()
-        await interaction.user.send(
-            "**ATTENZIONE!** E' stato rilevato un tentativo illegale di cambio utente.\n"
-            "Tale azione e' stata reportata agli amministratori.\n\n"
-            "Distinti saluti,\n~LNI Bot~"
-        )
+        try:
+            await interaction.user.send(
+                "**ATTENZIONE!** E' stato rilevato un tentativo illegale di cambio utente.\n"
+                "Tale azione e' stata reportata agli amministratori.\n\n"
+                "Distinti saluti,\n~LNI Bot~"
+            )
+        except Exception:
+            print(f"Error sending msg to {interaction.user.name}")
         msg = (
             f"**ATTENZIONE!** UTENTE {interaction.user.mention} HA TENTATO DI CAMBIARE I RUOLI "
             f"ALL'UTENTE {user.mention} NONOSTANTE SIA IN UN GRUPPO AMMINISTRATORE!"
@@ -160,7 +166,10 @@ async def on_member_join(member: discord.Member):
     file = discord.File(join_image_path, filename="image.png")
     embed = discord.Embed(description=join_message.format(member.display_name), colour=discord.Colour.gold())
     embed.set_image(url="attachment://image.png")
-    await member.send(file=file, embed=embed)
+    try:
+        await member.send(file=file, embed=embed)
+    except Exception:
+        print(f"Error sending msg to {member.name}")
     # Apparizione messaggio di selezione ruolo
     channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
     await send_changerole_msg_with(channel.send, member)
@@ -185,7 +194,10 @@ async def on_voice_state_update(member, before, after):
         permissions = after.channel.overwrites
         if len(created_channels) >= max_channels:
             await member.move_to(None)
-            await member.send(f"Vile marrano! Limite stanze a {max_channels}! 🗿🗿🗿")
+            try:
+                await member.send(f"Vile marrano! Limite stanze a {max_channels}! 🗿🗿🗿")
+            except Exception:
+                print(f"Error sending msg to {member.name}")
             return
         already_numbers = sorted([0] + [x for x, _ in created_channels])
         for s, e in pairwise(already_numbers):
@@ -230,7 +242,10 @@ async def on_message_antispam(message):
                 for msg in entry.msgs:
                     await msg.delete()
                 await message.delete()
-                await message.author.send(delete_msg)
+                try:
+                    await message.author.send(delete_msg)
+                except Exception:
+                    print(f"Error sending msg to {message.author.name}")
                 entry.msgs = []
                 # Admin Message
                 if entry.n > 2:
