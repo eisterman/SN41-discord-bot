@@ -118,7 +118,7 @@ async def send_changerole_msg_with(
         original_interaction: discord.Interaction | None = None,
         **kwargs
 ):
-    view = View()
+    view = View(timeout=None)
     rolesets = get_rolesets(user.guild)
     for clanname, rolenames in rolesets.items():
         view.add_item(RolesetButton(clanname, rolenames, user, original_interaction))
