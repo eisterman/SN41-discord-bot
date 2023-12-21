@@ -16,10 +16,10 @@ intents.members = True
 intents.voice_states = True
 intents.message_content = True
 
-ADMIN_ROLES = ['MECCANICI', 'AMMIRAGLIO', 'RECLUTATORE [LNI]', 'COMMODORO', 'BOT']
+ADMIN_ROLES = ['MECCANICI', 'AMMIRAGLIO', 'RECLUTATORE [SN41]', 'COMMODORO', 'BOT']
 
 join_message = \
-    ("Benvenuto in **LNI COMMUNITY** {}!\n"
+    ("Benvenuto in **SN41 COMMUNITY** {}!\n"
      "Modifica il tuo soprannome nel nostro discord in modo che coincida con il tuo nickname in gioco e "
      "se vuoi metti il tuo nome tra parentesi.\n"
      "Se sei interessato ad entrare nel clan, non esitare a contattare uno degli admin.\n"
@@ -57,12 +57,12 @@ In caso di domande o falsi positivi, contattare @eisterman"""
 
 def get_rolesets(guild: discord.Guild):
     names = [role.name for role in guild.roles]
-    lnicom_i = names.index("LNI COMMUNITY")
+    lnicom_i = names.index("SN41 COMMUNITY")
     commod_i = names.index("COMMODORO")
-    clans_name = ['[LNI]'] + list(reversed(names[lnicom_i+1:commod_i]))  # From older to newer
+    clans_name = ['[SN41]'] + list(reversed(names[lnicom_i+1:commod_i]))  # From older to newer
     out = OrderedDict()
     for clan_name in clans_name:
-        out[clan_name] = [clan_name, "LNI COMMUNITY"]
+        out[clan_name] = [clan_name, "SN41 COMMUNITY"]
     out["OSPITI"] = ["OSPITI"]
     return out
 
@@ -145,7 +145,7 @@ async def cambiaruolo(interaction: discord.Interaction, user: discord.Member):
             await interaction.user.send(
                 "**ATTENZIONE!** E' stato rilevato un tentativo illegale di cambio utente.\n"
                 "Tale azione e' stata reportata agli amministratori.\n\n"
-                "Distinti saluti,\n~LNI Bot~"
+                "Distinti saluti,\n~SN41 Bot~"
             )
         except Exception:
             print(f"Error sending msg to {interaction.user.name}")
@@ -270,3 +270,4 @@ async def sync_commands_here(ctx: discord.ext.commands.Context):
 
 
 bot.run(os.environ['DISCORD_BOT_SECRET_KEY'])
+
