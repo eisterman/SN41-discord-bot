@@ -25,7 +25,7 @@ join_message = \
      "Se sei interessato ad entrare nel clan, non esitare a contattare uno degli admin.\n"
      "Buona permanenza !")
 
-join_image_path = './discord_msg_img.jpg'
+join_image_path = './discord_msg_img.png'
 
 goodbye_phrases_file = './goodbye_phrases.txt'
 with open(goodbye_phrases_file) as f:

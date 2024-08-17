@@ -1,6 +1,4 @@
 .env
-discord_msg_img.jpg
-goodbye_phrases.txt
 docker-compose.yml
 member_list.txt
 
