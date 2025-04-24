@@ -1,4 +1,4 @@
-# LNI Discord Bot
+# SN41 Discord Bot
 
 ### How to run
 Install Docker on your server and run `docker compose run`
