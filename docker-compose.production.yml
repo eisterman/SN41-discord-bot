@@ -1,14 +1,10 @@
-version: "3.9"
-
 services:
-  discordbot:
+  discordbot_staging:
     build:
       context: .
       dockerfile: ./Dockerfile
-    image: discordbot
-    command: python3 code.py
-    volumes:
-      - .:/app
+    image: discordbot_staging
+    restart: unless-stopped
     env_file:
       - .env
 
