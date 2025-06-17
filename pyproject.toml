@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sn41-discord-bot"
+version = "0.2.0"
+description = "A Discord bot for SN41"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "discord.py[voice]==2.3.2",
+    "pytz==2023.3",
+    "audioop-lts; python_version>='3.13'",
+]

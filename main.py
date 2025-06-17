@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import random
+import logging
 from itertools import pairwise
 from collections import OrderedDict
 from datetime import datetime, timedelta
@@ -11,12 +12,19 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui import Button, View
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('SN41-Bot')
+
 intents = discord.Intents.default()
 intents.members = True
 intents.voice_states = True
 intents.message_content = True
 
-ADMIN_ROLES = ['MECCANICI', 'AMMIRAGLIO', 'RECLUTATORE [SN41]', 'COMMODORO', 'BOT']
+ADMIN_ROLES = ['ADEPTUS MECHANICUS', 'AMMIRAGLIO', 'RECLUTATORE [SN41]', 'COMMODORO', 'BOT']
 
 join_message = \
     ("Benvenuto in **SN41 COMMUNITY** {}!\n"
@@ -68,7 +76,7 @@ def get_rolesets(guild: discord.Guild):
 
 
 class RolesetButton(Button):
-    def __init__(self, clanname, rolenames: [str], member: discord.Member,
+    def __init__(self, clanname, rolenames: list[str], member: discord.Member,
                  original_interaction: discord.Interaction | None = None):
         self._member = member
         self._rolenames = rolenames
@@ -183,36 +191,78 @@ async def on_member_remove(member):
 
 @bot.event
 async def on_voice_state_update(member, before, after):
+    # Generate unique event ID for tracking
+    import secrets
+    event_id = f"{member.id}-{secrets.token_hex(4)}"
+
+    logger.info(f"[{event_id}] Voice state update: {member.display_name} ({member.id})")
+    logger.info(f"[{event_id}] Before: {before.channel.name if before.channel else 'None'} (ID: {before.channel.id if before.channel else 'None'})")
+    logger.info(f"[{event_id}] After: {after.channel.name if after.channel else 'None'} (ID: {after.channel.id if after.channel else 'None'})")
+    logger.info(f"[{event_id}] Current created_channels: {created_channels}")
+
+    # Channel cleanup logic
     if before.channel and before.channel.id in map(lambda x: x[1], created_channels):
+        logger.info(f"[{event_id}] User left a created channel: {before.channel.name} (members: {len(before.channel.members)})")
         if not before.channel.members:
+            logger.info(f"[{event_id}] Deleting empty channel: {before.channel.name}")
             await before.channel.delete()
             index = next((i for i, (x, chid) in enumerate(created_channels) if chid == before.channel.id), None)
-            created_channels.pop(index)
+            if index is not None:
+                removed = created_channels.pop(index)
+                logger.info(f"[{event_id}] Removed from created_channels: {removed}")
+            else:
+                logger.warning(f"[{event_id}] Channel ID {before.channel.id} not found in created_channels!")
 
+    # Channel creation logic
     if after.channel and after.channel.id == int(os.environ['DISCORD_DUPLICATE_VOICE_CHANNEL']):
+        logger.info(f"[{event_id}] User joined random battle channel: {after.channel.name}")
         permissions = after.channel.overwrites
+
+        # Check channel limit
         if len(created_channels) >= max_channels:
+            logger.warning(f"[{event_id}] Channel limit reached ({len(created_channels)}/{max_channels}), kicking user")
             await member.move_to(None)
             try:
                 await member.send(f"Vile marrano! Limite stanze a {max_channels}! 🗿🗿🗿")
             except Exception:
-                print(f"Error sending msg to {member.name}")
+                logger.error(f"[{event_id}] Error sending limit message to {member.name}")
             return
+
+        # Calculate new channel number
+        logger.info(f"[{event_id}] Calculating new channel number...")
         already_numbers = sorted([0] + [x for x, _ in created_channels])
+        logger.info(f"[{event_id}] Existing numbers: {already_numbers}")
+
         for s, e in pairwise(already_numbers):
             if e - s > 1:
                 new_number = s + 1
+                logger.info(f"[{event_id}] Found gap between {s} and {e}, using number: {new_number}")
                 break
         else:
             new_number = len(already_numbers)
+            logger.info(f"[{event_id}] No gaps found, using next sequential number: {new_number}")
+
+        # Create new channel
+        logger.info(f"[{event_id}] Creating channel with number {new_number}...")
+        logger.info(f"[{event_id}] Pre-creation created_channels state: {created_channels}")
+
         new_channel = await after.channel.guild.create_voice_channel(
             name=f"{new_number} {after.channel.name}",
             category=after.channel.category,
             overwrites=permissions,
             position=after.channel.position + new_number,
         )
+
+        logger.info(f"[{event_id}] Created channel: {new_channel.name} (ID: {new_channel.id})")
+
+        # Add to tracking list
         created_channels.append((new_number, new_channel.id))
+        logger.info(f"[{event_id}] Updated created_channels: {created_channels}")
+
+        # Move user to new channel
+        logger.info(f"[{event_id}] Moving user to new channel...")
         await member.move_to(new_channel)
+        logger.info(f"[{event_id}] User moved successfully to {new_channel.name}")
 
 
 @bot.listen('on_message')
@@ -257,7 +307,6 @@ async def on_message_antispam(message):
             msgentrydb[message.author.id] = MsgEntry(message, now)
     else:
         msgentrydb[message.author.id] = MsgEntry(message, now)
-
 
 @bot.command()
 @commands.guild_only()

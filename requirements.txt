@@ -1,4 +1,0 @@
-discord.py[voice]==2.3.2
-pytz==2023.3
-audioop-lts; python_version>='3.13' 
-
