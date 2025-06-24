@@ -147,7 +147,8 @@ async def send_changerole_msg_with(
 @app_commands.check(ac_check_if_admin)
 @app_commands.default_permissions(move_members=True)
 @app_commands.guild_only()
-async def cambiaruolo(interaction: discord.Interaction, target_user: discord.Member):
+async def cambiaruolo(interaction: discord.Interaction, user: discord.Member):
+    target_user = user  # The decorators expect explicitly a user argument.
     event_id = gen_event_id(interaction.user)
     channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
     if interaction.channel != channel:
