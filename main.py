@@ -218,7 +218,7 @@ async def on_voice_state_update(member, before, after):
     if before.channel and before.channel.id in map(lambda x: x[1], created_channels):
         if not before.channel.members:
             index = next((i for i, (x, chid) in enumerate(created_channels) if chid == before.channel.id), None)
-            logger.info(f"[{event_id}] Voice state update - Channel id {index} removed")
+            logger.info(f"[{event_id}] Voice state update - Channel {created_channels[index][0]} removed")
             await before.channel.delete()
             if index is not None:
                 created_channels.pop(index)
