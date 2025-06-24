@@ -2,6 +2,7 @@
 import os
 import random
 import logging
+import secrets
 from itertools import pairwise
 from collections import OrderedDict
 from datetime import datetime, timedelta
@@ -15,7 +16,7 @@ from discord.ui import Button, View
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger('SN41-Bot')
 
@@ -41,6 +42,8 @@ with open(goodbye_phrases_file) as f:
 
 msgentrydb = {}  # user_id: MsgEntry
 
+def gen_event_id(member: discord.Member):
+    return f"{member.id}-{secrets.token_hex(4)}"
 
 class MsgEntry:
     def __init__(self, msg, timestamp):
@@ -84,7 +87,9 @@ class RolesetButton(Button):
         super().__init__(label=clanname)
 
     async def callback(self, interaction: discord.Interaction):
+        event_id = gen_event_id(interaction.user)
         if not is_admin(interaction.user):
+            logger.warning(f"[{event_id}] Roleset - User {interaction.user.display_name} ILLEGALLY tried to set the role {self.label} to {self._member.mention}")
             channel = bot.get_channel(int(os.environ['DISCORD_ADMIN_LOG_CHANNEL']))
             await interaction.message.delete()
             msg = (
@@ -97,13 +102,14 @@ class RolesetButton(Button):
                     "Tale azione e' stata reportata agli amministratori."
                 )
             except Exception:
-                print(f"Error sending msg to {interaction.user.name}")
+                logger.error(f"[{event_id}] Roleset - Error sending msg to {interaction.user.name}")
             await channel.send(msg)
             return
         if self._ointeraction is None:
             await interaction.message.delete()
         else:
             await self._ointeraction.delete_original_response()
+        logger.info(f"[{event_id}] Roleset - User {interaction.user.display_name} set role {self.label} to {self._member.mention}")
         guild = interaction.guild
         channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
         roles_to_assign = [discord.utils.get(guild.roles, name=rolename) for rolename in self._rolenames]
@@ -141,13 +147,16 @@ async def send_changerole_msg_with(
 @app_commands.check(ac_check_if_admin)
 @app_commands.default_permissions(move_members=True)
 @app_commands.guild_only()
-async def cambiaruolo(interaction: discord.Interaction, user: discord.Member):
+async def cambiaruolo(interaction: discord.Interaction, target_user: discord.Member):
+    event_id = gen_event_id(interaction.user)
     channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
     if interaction.channel != channel:
+        logger.info(f"[{event_id}] /cambiaruolo - Member {interaction.user.display_name} used /cambiaruolo in the wrong channel {interaction.channel.name}")
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"Non puoi usare /cambiaruolo fuori da {channel.name}!", ephemeral=True)
         return
-    if is_admin(user):
+    if is_admin(target_user):
+        logger.warning(f"[{event_id}] /cambiaruolo - Member {interaction.user.display_name} tried to change role to the Administrator {target_user.display_name}")
         channel = bot.get_channel(int(os.environ['DISCORD_ADMIN_LOG_CHANNEL']))
         try:
             await interaction.user.send(
@@ -156,19 +165,22 @@ async def cambiaruolo(interaction: discord.Interaction, user: discord.Member):
                 "Distinti saluti,\n~SN41 Bot~"
             )
         except Exception:
-            print(f"Error sending msg to {interaction.user.name}")
+            logger.error(f"[{event_id}] /cambiaruolo - Error sending msg to {interaction.user.name}")
         msg = (
             f"**ATTENZIONE!** UTENTE {interaction.user.mention} HA TENTATO DI CAMBIARE I RUOLI "
-            f"ALL'UTENTE {user.mention} NONOSTANTE SIA IN UN GRUPPO AMMINISTRATORE!"
+            f"ALL'UTENTE {target_user.mention} NONOSTANTE SIA IN UN GRUPPO AMMINISTRATORE!"
         )
         await channel.send(msg)
         return
+    logger.info(f"[{event_id}] /cambiaruolo - Member {interaction.user.display_name} asked a change role message for {target_user.display_name}")
     # noinspection PyUnresolvedReferences
-    await send_changerole_msg_with(interaction.response.send_message, user, interaction, ephemeral=True)
+    await send_changerole_msg_with(interaction.response.send_message, target_user, interaction, ephemeral=True)
 
 
 @bot.event
 async def on_member_join(member: discord.Member):
+    event_id = gen_event_id(member)
+    logger.info(f"[{event_id}] on_member_join - Member {member.display_name} joined the server")
     # Invio messaggio di benvenuto
     file = discord.File(join_image_path, filename="image.png")
     embed = discord.Embed(description=join_message.format(member.display_name), colour=discord.Colour.gold())
@@ -176,7 +188,7 @@ async def on_member_join(member: discord.Member):
     try:
         await member.send(file=file, embed=embed)
     except Exception:
-        print(f"Error sending msg to {member.name}")
+        logger.error(f"[{event_id}] on_member_Join - Error sending message to {member.name}")
     # Apparizione messaggio di selezione ruolo
     channel = bot.get_channel(int(os.environ['DISCORD_ASSIGNROLE_TEXT_CHANNEL']))
     await send_changerole_msg_with(channel.send, member)
@@ -184,6 +196,8 @@ async def on_member_join(member: discord.Member):
 
 @bot.event
 async def on_member_remove(member):
+    event_id = gen_event_id(member)
+    logger.info(f"[{event_id}] on_member_remove - Member {member.display_name} leaved the server")
     channel = bot.get_channel(int(os.environ['DISCORD_GENERAL_TEXT_CHANNEL']))
     phrase = random.sample(goodbye_phrases, 1)[0]
     await channel.send(phrase.format(member.display_name))
@@ -197,8 +211,7 @@ async def on_voice_state_update(member, before, after):
     if before.channel and after.channel and before.channel.id == after.channel.id:
         return
 
-    import secrets
-    event_id = f"{member.id}-{secrets.token_hex(4)}"
+    event_id = gen_event_id(member)
 
     # Channel cleanup logic
     if before.channel and before.channel.id in map(lambda x: x[1], created_channels):
@@ -228,7 +241,7 @@ async def on_voice_state_update(member, before, after):
         else:
             new_number = len(already_numbers)
 
-        logger.info(f"[{event_id}] Voice state update - Member {member.display_name} (ID: {member.id}) created Channel {new_number}")
+        logger.info(f"[{event_id}] Voice state update - Member {member.display_name} created Channel {new_number}")
         new_channel = await after.channel.guild.create_voice_channel(
             name=f"{new_number} {after.channel.name}",
             category=after.channel.category,
@@ -242,7 +255,6 @@ async def on_voice_state_update(member, before, after):
 
 @bot.listen('on_message')
 async def on_message_antispam(message):
-
     if message.author.id == bot.user.id:
         return
     if len(message.content) < 10:
@@ -262,16 +274,22 @@ async def on_message_antispam(message):
             # Same message!
             entry.n += 1
             if entry.n >= 2:
-                # Block messages
+                # Logging
+                event_id = gen_event_id(message.author)
+                if entry.n > 2:
+                    logger.warning(f"[{event_id}] Spam - Member {message.author.name} timeouted (n={entry.n})")
+                else:
+                    logger.warning(f"[{event_id}] Spam - Member {message.author.name} triggered antispam filter (n={entry.n})")
+                # First Block
                 for msg in entry.msgs:
                     await msg.delete()
                 await message.delete()
                 try:
                     await message.author.send(delete_msg)
                 except Exception:
-                    print(f"Error sending msg to {message.author.name}")
+                    logger.error(f"[{event_id}] Spam - Error sending msg to {message.author.name}")
                 entry.msgs = []
-                # Admin Message
+                # Timeout and Admin Message
                 if entry.n > 2:
                     await message.author.timeout(timedelta(minutes=5),
                                                  reason="Spamming")
@@ -287,9 +305,10 @@ async def on_message_antispam(message):
 @commands.guild_only()
 @commands.has_role('MECCANICI')
 async def sync_commands_here(ctx: discord.ext.commands.Context):
-    guild = ctx.guild
-    bot.tree.copy_global_to(guild=guild)
-    await bot.tree.sync(guild=guild)
+    event_id = gen_event_id(ctx.interaction.user)
+    logger.info(f"[{event_id}] Admin {ctx.interaction.user} triggered a Command Sync with the server {ctx.guild.name} (ID {ctx.guild.id})")
+    bot.tree.copy_global_to(guild=ctx.guild)
+    await bot.tree.sync(guild=ctx.guild)
     await ctx.send("Commands sync with this server")
 
 
