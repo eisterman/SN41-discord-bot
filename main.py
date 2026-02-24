@@ -142,6 +142,9 @@ async def send_changerole_msg_with(
     await awaitable_func(msg, view=view, **kwargs)
 
 
+async def replay():
+    pass
+
 @bot.tree.command(description="Apre un messaggio di selezione ruolo per l'utente scelto")
 @app_commands.describe(user="L'utente di cui modificare il ruolo")
 @app_commands.check(ac_check_if_admin)
