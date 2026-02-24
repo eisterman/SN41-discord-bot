@@ -258,6 +258,8 @@ async def on_voice_state_update(member, before, after):
 async def on_message_antispam(message):
     if message.author.id == bot.user.id:
         return
+    if is_admin(message.author):
+        return
     if len(message.content) < 10:
         try:
             msgentrydb.pop(message.author.id)

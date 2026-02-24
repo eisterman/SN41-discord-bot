@@ -5,3 +5,4 @@ member_list.txt
 # Python package metadata
 *.egg-info/
 
+.idea/
