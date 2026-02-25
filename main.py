@@ -154,27 +154,34 @@ async def replay(interaction: discord.Interaction, file: discord.Attachment):
     if not file_name.endswith('.wowsreplay'):
         await interaction.response.send_message("Replay hanno .wowsreplay come estensione", ephemeral=True)
         return
-    logger.info("Starting replay")
     file_bytes = await file.read()
+    await interaction.response.defer(thinking=True)
+    logger.info("Starting replay")
     data = aiohttp.FormData()
     data.add_field('file', file_bytes, filename=file_name)
     async with aiohttp.ClientSession(headers={ 'X-API-KEY': 'el-junel-4122e1b1db2378b2979ef9bf'}) as session:
         # TODO: mettere un messaggio che dica che la cazza e' in corso, se possibile?
-        await interaction.response.defer(thinking=True)
         logger.info("Render against the server")
-        async with session.post(f'{renderapi_base_url}/api/render', data=data) as response:
-            logger.info("Reponsed")
-            reply = await response.json()
-            video_url = f"{renderapi_base_url}{reply['video_url']}"
-            filename = video_url.split('/')[-1]
-            logger.info(f"Retrieving video from {filename}")
-            message = f"Input File: {reply['metadata']['filename']}"
-            async with session.get(video_url) as file_response:
-                file_data = await file_response.read()
-                logger.info(f"{len(file_data)} - {file_response.content_length} - {file_response.content_type}")
-                discord_file = discord.File(io.BytesIO(file_data), filename=filename)
-                embed = discord.Embed(description=message)
-                await interaction.followup.send(file=discord_file, embed=embed)
+        await interaction.edit_original_response(content="Render in corso... (puo metterci anche un paio di minuti)")
+        # noinspection PyBroadException
+        try:
+            async with session.post(f'{renderapi_base_url}/api/render', data=data) as response:
+                logger.info("Reponsed")
+                await interaction.edit_original_response(content="Render Completo! Sto caricando il video...")
+                reply = await response.json()
+                video_url = f"{renderapi_base_url}{reply['video_url']}"
+                filename = video_url.split('/')[-1]
+                logger.info(f"Retrieving video from {filename}")
+                message = f"Input File: {reply['metadata']['filename']}"
+                async with session.get(video_url) as file_response:
+                    file_data = await file_response.read()
+                    logger.info(f"{len(file_data)} - {file_response.content_length} - {file_response.content_type}")
+                    discord_file = discord.File(io.BytesIO(file_data), filename=filename)
+                    embed = discord.Embed(description=message)
+                    await interaction.edit_original_response(attachments=[discord_file], embed=embed)
+        except Exception:
+            await interaction.followup.send("ERRORE! Urla a Fede di tornare in miniera")
+
 
 @bot.tree.command(description="Apre un messaggio di selezione ruolo per l'utente scelto")
 @app_commands.describe(user="L'utente di cui modificare il ruolo")
