@@ -6,10 +6,12 @@ import secrets
 from itertools import pairwise
 from collections import OrderedDict
 from datetime import datetime, timedelta
+
+import aiohttp
 import pytz
 from hashlib import md5
 import discord
-from discord import app_commands
+from discord import app_commands, Webhook
 from discord.ext import commands
 from discord.ui import Button, View
 
@@ -142,8 +144,29 @@ async def send_changerole_msg_with(
     await awaitable_func(msg, view=view, **kwargs)
 
 
-async def replay():
-    pass
+@bot.tree.command(description="Crea un nuovo replay")
+@app_commands.describe(file="File .wowsreplay da renderizzare")
+@app_commands.default_permissions(attach_files=True)
+async def replay(interaction: discord.Interaction, file: discord.Attachment):
+    file_name = file.filename
+    if not file_name.endswith('.wowsreplay'):
+        await interaction.response.send_message("Replay hanno .wowsreplay come estensione", ephemeral=True)
+        return
+    logger.info("Starting replay")
+    file_bytes = await file.read()
+    data = aiohttp.FormData()
+    data.add_field('file', file_bytes, filename=file_name)
+    async with aiohttp.ClientSession(headers={ 'X-API-KEY': 'el-junel-4122e1b1db2378b2979ef9bf'}) as session:
+        # TODO: mettere un messaggio che dica che la cazza e' in corso, se possibile?
+        await interaction.response.defer(thinking=True)
+        logger.info("Render against the server")
+        async with session.post('https://renderapi.sn41.eisterman.dev/api/render', data=data) as response:
+            logger.info("Reponsed")
+            reply = await response.json()
+            # TODO: Aggiungere l'Embed con il file allegato, che e' stato scaricato
+            #  dal sito usando l'header api-key
+            await interaction.followup.send(f"Test test, {reply}")
+            print("Status:", response.status)
 
 @bot.tree.command(description="Apre un messaggio di selezione ruolo per l'utente scelto")
 @app_commands.describe(user="L'utente di cui modificare il ruolo")
@@ -309,10 +332,10 @@ async def on_message_antispam(message):
 
 @bot.command()
 @commands.guild_only()
-@commands.has_role('MECCANICI')
+@commands.has_role('ADEPTUS MECHANICUS')
 async def sync_commands_here(ctx: discord.ext.commands.Context):
-    event_id = gen_event_id(ctx.interaction.user)
-    logger.info(f"[{event_id}] Admin {ctx.interaction.user} triggered a Command Sync with the server {ctx.guild.name} (ID {ctx.guild.id})")
+    event_id = gen_event_id(ctx.author)
+    logger.info(f"[{event_id}] Admin {ctx.author} triggered a Command Sync with the server {ctx.guild.name} (ID {ctx.guild.id})")
     bot.tree.copy_global_to(guild=ctx.guild)
     await bot.tree.sync(guild=ctx.guild)
     await ctx.send("Commands sync with this server")
