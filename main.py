@@ -6,7 +6,7 @@ import secrets
 from itertools import pairwise
 from collections import OrderedDict
 from datetime import datetime, timedelta
-
+import io
 import aiohttp
 import pytz
 from hashlib import md5
@@ -41,6 +41,8 @@ join_image_path = './discord_msg_img.png'
 goodbye_phrases_file = './goodbye_phrases.txt'
 with open(goodbye_phrases_file) as f:
     goodbye_phrases = [ph.strip() for ph in f.readlines() if len(ph.strip()) > 0]
+
+renderapi_base_url = 'https://renderapi.sn41.eisterman.dev'
 
 msgentrydb = {}  # user_id: MsgEntry
 
@@ -160,13 +162,19 @@ async def replay(interaction: discord.Interaction, file: discord.Attachment):
         # TODO: mettere un messaggio che dica che la cazza e' in corso, se possibile?
         await interaction.response.defer(thinking=True)
         logger.info("Render against the server")
-        async with session.post('https://renderapi.sn41.eisterman.dev/api/render', data=data) as response:
+        async with session.post(f'{renderapi_base_url}/api/render', data=data) as response:
             logger.info("Reponsed")
             reply = await response.json()
-            # TODO: Aggiungere l'Embed con il file allegato, che e' stato scaricato
-            #  dal sito usando l'header api-key
-            await interaction.followup.send(f"Test test, {reply}")
-            print("Status:", response.status)
+            video_url = f"{renderapi_base_url}{reply['video_url']}"
+            filename = video_url.split('/')[-1]
+            logger.info(f"Retrieving video from {filename}")
+            message = f"Input File: {reply['metadata']['filename']}"
+            async with session.get(video_url) as file_response:
+                file_data = await file_response.read()
+                logger.info(f"{len(file_data)} - {file_response.content_length} - {file_response.content_type}")
+                discord_file = discord.File(io.BytesIO(file_data), filename=filename)
+                embed = discord.Embed(description=message)
+                await interaction.followup.send(file=discord_file, embed=embed)
 
 @bot.tree.command(description="Apre un messaggio di selezione ruolo per l'utente scelto")
 @app_commands.describe(user="L'utente di cui modificare il ruolo")
