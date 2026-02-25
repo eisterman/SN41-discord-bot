@@ -159,7 +159,7 @@ async def replay(interaction: discord.Interaction, file: discord.Attachment):
     logger.info("Starting replay")
     data = aiohttp.FormData()
     data.add_field('file', file_bytes, filename=file_name)
-    async with aiohttp.ClientSession(headers={ 'X-API-KEY': 'el-junel-4122e1b1db2378b2979ef9bf'}) as session:
+    async with aiohttp.ClientSession(headers={ 'X-API-KEY': os.environ['RENDER_API_KEY']}) as session:
         # TODO: mettere un messaggio che dica che la cazza e' in corso, se possibile?
         logger.info("Render against the server")
         await interaction.edit_original_response(content="Render in corso... (puo metterci anche un paio di minuti)")
