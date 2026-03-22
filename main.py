@@ -281,7 +281,7 @@ async def on_voice_state_update(member, before, after):
                 new_number = s + 1
                 break
         else:
-            new_number = len(already_numbers)
+            new_number = already_numbers[-1] + 1
 
         logger.info(f"[{event_id}] Voice state update - Member {member.display_name} created Channel {new_number}")
         new_channel = await after.channel.guild.create_voice_channel(
