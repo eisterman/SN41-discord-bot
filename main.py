@@ -11,7 +11,7 @@ import aiohttp
 import pytz
 from hashlib import md5
 import discord
-from discord import app_commands, Webhook
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import Button, View
 
@@ -27,7 +27,7 @@ intents.members = True
 intents.voice_states = True
 intents.message_content = True
 
-ADMIN_ROLES = ['ADEPTUS MECHANICUS', 'AMMIRAGLIO', 'RECLUTATORE [SN41]', 'COMMODORO', 'BOT']
+ADMIN_ROLES = ['ADEPTUS MECHANICUS', 'AMMIRAGLIO', 'RECLUTATORE [SN41]', 'BOT']
 
 join_message = \
     ("Benvenuto in **SN41 COMMUNITY** {}!\n"
@@ -64,7 +64,7 @@ max_channels = 50
 created_channels = []  # (i, chidx)
 
 delete_msg = """Rilevati messaggi ripetuti.
-Messaggi precedenti cancellati. 
+Messaggi precedenti cancellati.
 Ulteriori invii dello stesso messaggio di seguito risulteranno in un timeout di 5 minuti.
 
 In caso di domande o falsi positivi, contattare @eisterman"""
@@ -97,7 +97,7 @@ class RolesetButton(Button):
             channel = bot.get_channel(int(os.environ['DISCORD_ADMIN_LOG_CHANNEL']))
             await interaction.message.delete()
             msg = (
-                f"**ATTENZIONE!** UTENTE {interaction.user.mention} HA TENTATO DI CAMBIARE I RUOLI " 
+                f"**ATTENZIONE!** UTENTE {interaction.user.mention} HA TENTATO DI CAMBIARE I RUOLI "
                 f"(set to {self.label}) ALL'UTENTE {self._member.mention} IN MANIERA ILLEGALE!"
             )
             try:
@@ -357,4 +357,3 @@ async def sync_commands_here(ctx: discord.ext.commands.Context):
 
 
 bot.run(os.environ['DISCORD_BOT_SECRET_KEY'])
-
